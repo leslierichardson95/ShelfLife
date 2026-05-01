@@ -1,0 +1,223 @@
+<style>
+    .book-card-interactive {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer;
+    }
+    .book-card-interactive:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(124, 77, 255, 0.25) !important;
+    }
+</style>
+
+@if (Book is not null)
+{
+    <MudCard Elevation="3" Class="book-card book-card-interactive" Style="height: 100%; position: relative;"
+             @onclick="HandleViewDetails">
+        <div style="display: flex; flex-direction: row; height: 100%;">
+            <div style="min-width: 120px; max-width: 120px; overflow: hidden;">
+                @if (!string.IsNullOrEmpty(Book.CoverUrl))
+                {
+                    <MudImage Src="@Book.CoverUrl" Alt="@Book.Title" ObjectFit="ObjectFit.Cover"
+                              Style="width: 120px; height: 180px;" Class="rounded-l" />
+                }
+                else
+                {
+                    <div style="width: 120px; height: 180px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #7C4DFF 0%, #448AFF 100%);">
+                        <MudIcon Icon="@Icons.Material.Filled.MenuBook" Size="Size.Large" Style="color: white; opacity: 0.8;" />
+                    </div>
+                }
+            </div>
+            <div style="flex: 1; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; min-width: 0;">
+                <div>
+                    <MudText Typo="Typo.subtitle1" Style="font-weight: 600; line-height: 1.3;" Class="mb-1">
+                        @Book.Title
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                        @Book.Author
+                    </MudText>
+                </div>
+                <div>
+                    <div class="d-flex align-center gap-2 flex-wrap mb-1">
+                        @if (!string.IsNullOrEmpty(Book.Genre))
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+                                @Book.Genre
+                            </MudChip>
+                        }
+                        @if (Book.PageCount.HasValue)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Default">@Book.PageCount pp</MudText>
+                        }
+                    </div>
+                    <div class="d-flex align-center gap-2">
+                        <span @onclick="CycleStatus" @onclick:stopPropagation="true" style="cursor: pointer;" title="Click to change status">
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(Book.Status)" Variant="Variant.Filled">
+                                @GetStatusText(Book.Status)
+                            </MudChip>
+                        </span>
+                        @if (Book.Rating.HasValue)
+                        {
+                            <MudRating ReadOnly="true" SelectedValue="@Book.Rating.Value" Size="Size.Small" />
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @* Quick-action menu (top-right corner) *@
+            <div style="position: absolute; top: 4px; right: 4px;" @onclick:stopPropagation="true">
+                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true"
+                         AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                    <MudMenuItem Icon="@Icons.Material.Filled.AutoStories" OnClick="@(() => SetStatus(ReadingStatus.Reading))">
+                        Mark as Reading
+                    </MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.CheckCircle" OnClick="@(() => SetStatus(ReadingStatus.Finished))">
+                        Mark as Finished
+                    </MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.BookmarkAdd" OnClick="@(() => SetStatus(ReadingStatus.WantToRead))">
+                        Want to Read
+                    </MudMenuItem>
+                    <MudDivider />
+                    <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error" OnClick="HandleDelete">
+                        Remove from Shelf
+                    </MudMenuItem>
+                </MudMenu>
+            </div>
+        </div>
+    </MudCard>
+}
+else if (SearchResult is not null)
+{
+    <MudCard Elevation="3" Class="book-card book-card-interactive" Style="height: 100%;">
+        <div style="display: flex; flex-direction: row; height: 100%;">
+            <div style="min-width: 120px; max-width: 120px; overflow: hidden;">
+                @if (!string.IsNullOrEmpty(SearchResult.CoverUrl))
+                {
+                    <MudImage Src="@SearchResult.CoverUrl" Alt="@SearchResult.Title" ObjectFit="ObjectFit.Cover"
+                              Style="width: 120px; height: 180px;" Class="rounded-l" />
+                }
+                else
+                {
+                    <div style="width: 120px; height: 180px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #7C4DFF 0%, #448AFF 100%);">
+                        <MudIcon Icon="@Icons.Material.Filled.MenuBook" Size="Size.Large" Style="color: white; opacity: 0.8;" />
+                    </div>
+                }
+            </div>
+            <div style="flex: 1; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; min-width: 0;">
+                <div>
+                    <MudText Typo="Typo.subtitle1" Style="font-weight: 600; line-height: 1.3;" Class="mb-1">
+                        @SearchResult.Title
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                        @SearchResult.Author
+                    </MudText>
+                </div>
+                <div>
+                    <div class="d-flex align-center gap-2 flex-wrap mb-2">
+                        @if (!string.IsNullOrEmpty(SearchResult.Genre))
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+                                @SearchResult.Genre
+                            </MudChip>
+                        }
+                        @if (SearchResult.PageCount.HasValue)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Default">@SearchResult.PageCount pp</MudText>
+                        }
+                    </div>
+                    @if (_added)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Check" Disabled="true">
+                            Added ✓
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Add" OnClick="HandleAddToShelf">
+                            Add to Shelf
+                        </MudButton>
+                    }
+                </div>
+            </div>
+        </div>
+    </MudCard>
+}
+
+@code {
+    [Parameter] public BookDto? Book { get; set; }
+    [Parameter] public BookSearchResult? SearchResult { get; set; }
+    [Parameter] public EventCallback OnAddToShelf { get; set; }
+    [Parameter] public EventCallback<int> OnViewDetails { get; set; }
+    [Parameter] public EventCallback<(int Id, ReadingStatus Status)> OnStatusChanged { get; set; }
+    [Parameter] public EventCallback<int> OnDelete { get; set; }
+    [Parameter] public bool IsAdded { get; set; }
+
+    private bool _added;
+
+    protected override void OnParametersSet()
+    {
+        if (IsAdded) _added = true;
+    }
+
+    private async Task HandleAddToShelf()
+    {
+        if (OnAddToShelf.HasDelegate)
+        {
+            await OnAddToShelf.InvokeAsync();
+            _added = true;
+        }
+    }
+
+    private async Task HandleViewDetails()
+    {
+        if (Book is not null && OnViewDetails.HasDelegate)
+            await OnViewDetails.InvokeAsync(Book.Id);
+    }
+
+    private async Task CycleStatus()
+    {
+        if (Book is null) return;
+        var next = Book.Status switch
+        {
+            ReadingStatus.WantToRead => ReadingStatus.Reading,
+            ReadingStatus.Reading => ReadingStatus.Finished,
+            ReadingStatus.Finished => ReadingStatus.WantToRead,
+            ReadingStatus.Abandoned => ReadingStatus.WantToRead,
+            _ => ReadingStatus.WantToRead
+        };
+        await SetStatus(next);
+    }
+
+    private async Task SetStatus(ReadingStatus status)
+    {
+        if (Book is null) return;
+        Book.Status = status;
+        if (OnStatusChanged.HasDelegate)
+            await OnStatusChanged.InvokeAsync((Book.Id, status));
+    }
+
+    private async Task HandleDelete()
+    {
+        if (Book is not null && OnDelete.HasDelegate)
+            await OnDelete.InvokeAsync(Book.Id);
+    }
+
+    private static Color GetStatusColor(ReadingStatus status) => status switch
+    {
+        ReadingStatus.WantToRead => Color.Info,
+        ReadingStatus.Reading => Color.Warning,
+        ReadingStatus.Finished => Color.Success,
+        ReadingStatus.Abandoned => Color.Error,
+        _ => Color.Default
+    };
+
+    private static string GetStatusText(ReadingStatus status) => status switch
+    {
+        ReadingStatus.WantToRead => "Want to Read",
+        ReadingStatus.Reading => "Reading",
+        ReadingStatus.Finished => "Finished",
+        ReadingStatus.Abandoned => "Abandoned",
+        _ => status.ToString()
+    };
+}

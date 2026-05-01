@@ -1,0 +1,250 @@
+@page "/book/{Id:int}"
+@inject ShelfLifeApiClient Api
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>ShelfLife — Book Details</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    @if (_loading)
+    {
+        <MudGrid Spacing="4">
+            <MudItem xs="12" sm="4">
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="400px" />
+            </MudItem>
+            <MudItem xs="12" sm="8">
+                <MudSkeleton Width="60%" Height="40px" />
+                <MudSkeleton Width="40%" Class="mt-2" />
+                <MudSkeleton Width="100%" Height="200px" Class="mt-4" />
+            </MudItem>
+        </MudGrid>
+    }
+    else if (_book is null)
+    {
+        <div class="d-flex flex-column align-center mt-8">
+            <MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Large" Color="Color.Error" />
+            <MudText Typo="Typo.h6" Color="Color.Secondary" Class="mt-2">Book not found.</MudText>
+            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo("/shelf"))">
+                Back to Shelf
+            </MudButton>
+        </div>
+    }
+    else
+    {
+        <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack"
+                   OnClick="@(() => Navigation.NavigateTo("/shelf"))" Class="mb-4">
+            Back to Shelf
+        </MudButton>
+
+        <MudGrid Spacing="6">
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="4" Style="border-radius: 12px; overflow: hidden;">
+                    @if (!string.IsNullOrEmpty(_book.CoverUrl))
+                    {
+                        <MudImage Src="@_book.CoverUrl" Alt="@_book.Title" ObjectFit="ObjectFit.Cover"
+                                  Style="width: 100%; min-height: 350px;" />
+                    }
+                    else
+                    {
+                        <div style="width: 100%; height: 350px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #7C4DFF 0%, #448AFF 100%);">
+                            <MudIcon Icon="@Icons.Material.Filled.MenuBook" Style="font-size: 5rem; color: white; opacity: 0.8;" />
+                        </div>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="8">
+                <MudText Typo="Typo.h4" Style="font-weight: 700;">@_book.Title</MudText>
+                <MudText Typo="Typo.h6" Color="Color.Secondary" Class="mb-4">@_book.Author</MudText>
+
+                <div class="d-flex flex-wrap gap-3 mb-4">
+                    @if (!string.IsNullOrEmpty(_book.Isbn))
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Bookmark">
+                            ISBN: @_book.Isbn
+                        </MudChip>
+                    }
+                    @if (!string.IsNullOrEmpty(_book.Genre))
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+                            @_book.Genre
+                        </MudChip>
+                    }
+                    @if (_book.PageCount.HasValue)
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Description">
+                            @_book.PageCount pages
+                        </MudChip>
+                    }
+                    @if (_book.PublishYear.HasValue)
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.CalendarMonth">
+                            @_book.PublishYear
+                        </MudChip>
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(_book.Description))
+                {
+                    <MudText Typo="Typo.body1" Class="mb-6" Style="line-height: 1.7; opacity: 0.9;">
+                        @_book.Description
+                    </MudText>
+                }
+
+                <MudDivider Class="mb-4" />
+
+                <MudGrid Spacing="4">
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="ReadingStatus" @bind-Value="_status" Label="Reading Status"
+                                   Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                            <MudSelectItem T="ReadingStatus" Value="ReadingStatus.WantToRead">Want to Read</MudSelectItem>
+                            <MudSelectItem T="ReadingStatus" Value="ReadingStatus.Reading">Reading</MudSelectItem>
+                            <MudSelectItem T="ReadingStatus" Value="ReadingStatus.Finished">Finished</MudSelectItem>
+                            <MudSelectItem T="ReadingStatus" Value="ReadingStatus.Abandoned">Abandoned</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="mb-1">Rating</MudText>
+                        <MudRating @bind-SelectedValue="_rating" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudDatePicker @bind-Date="_dateStarted" Label="Date Started" Variant="Variant.Outlined"
+                                       Editable="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudDatePicker @bind-Date="_dateFinished" Label="Date Finished" Variant="Variant.Outlined"
+                                       Editable="true" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" @bind-Value="_reviewText" Label="Review / Notes"
+                                      Variant="Variant.Outlined" Lines="4" />
+                    </MudItem>
+                </MudGrid>
+
+                <div class="d-flex gap-3 mt-6">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                               OnClick="SaveChanges" Disabled="_saving">
+                        @if (_saving)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        Save Changes
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
+                               OnClick="ConfirmDelete">
+                        Delete
+                    </MudButton>
+                </div>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private BookDto? _book;
+    private bool _loading = true;
+    private bool _saving;
+
+    private ReadingStatus _status;
+    private int _rating;
+    private string _reviewText = string.Empty;
+    private DateTime? _dateStarted;
+    private DateTime? _dateFinished;
+    private ReadingStatus _previousStatus;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _book = await Api.GetBookAsync(Id);
+            if (_book is not null)
+            {
+                _status = _book.Status;
+                _previousStatus = _book.Status;
+                _rating = _book.Rating ?? 0;
+                _reviewText = _book.ReviewText ?? string.Empty;
+                _dateStarted = _book.DateStarted;
+                _dateFinished = _book.DateFinished;
+            }
+        }
+        catch
+        {
+            Snackbar.Add("Failed to load book details.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveChanges()
+    {
+        if (_book is null) return;
+
+        // Auto-set dates on status change
+        if (_status == ReadingStatus.Reading && _previousStatus != ReadingStatus.Reading && _dateStarted is null)
+            _dateStarted = DateTime.Today;
+        if (_status == ReadingStatus.Finished && _previousStatus != ReadingStatus.Finished && _dateFinished is null)
+            _dateFinished = DateTime.Today;
+
+        _saving = true;
+        try
+        {
+            var request = new UpdateBookRequest
+            {
+                Status = _status,
+                Rating = _rating > 0 ? _rating : null,
+                ReviewText = string.IsNullOrWhiteSpace(_reviewText) ? null : _reviewText,
+                DateStarted = _dateStarted,
+                DateFinished = _dateFinished
+            };
+            var updated = await Api.UpdateBookAsync(Id, request);
+            if (updated is not null)
+            {
+                _book = updated;
+                _previousStatus = _status;
+                Snackbar.Add("Book updated successfully! ✅", Severity.Success);
+            }
+        }
+        catch
+        {
+            Snackbar.Add("Failed to save changes.", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task ConfirmDelete()
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.ContentText, $"Are you sure you want to delete \"{_book?.Title}\"? This cannot be undone." },
+            { x => x.ButtonText, "Delete" },
+            { x => x.Color, Color.Error }
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Delete Book", parameters);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            try
+            {
+                var success = await Api.DeleteBookAsync(Id);
+                if (success)
+                {
+                    Snackbar.Add("Book deleted.", Severity.Info);
+                    Navigation.NavigateTo("/shelf");
+                }
+            }
+            catch
+            {
+                Snackbar.Add("Failed to delete book.", Severity.Error);
+            }
+        }
+    }
+}

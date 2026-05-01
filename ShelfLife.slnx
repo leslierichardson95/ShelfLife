@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ShelfLife.Api/ShelfLife.Api.csproj" />
+    <Project Path="src/ShelfLife.AppHost/ShelfLife.AppHost.csproj" />
+    <Project Path="src/ShelfLife.ServiceDefaults/ShelfLife.ServiceDefaults.csproj" />
+    <Project Path="src/ShelfLife.Shared/ShelfLife.Shared.csproj" />
+    <Project Path="src/ShelfLife.Web/ShelfLife.Web.csproj" />
+  </Folder>
+</Solution>

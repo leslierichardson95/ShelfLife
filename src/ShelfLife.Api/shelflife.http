@@ -1,0 +1,55 @@
+@host = http://localhost:5000
+
+### Seed the database
+POST {{host}}/api/books/seed
+
+### Get all books
+GET {{host}}/api/books
+
+### Get books by status
+GET {{host}}/api/books?status=Reading
+
+### Get single book
+GET {{host}}/api/books/1
+
+### Search Open Library
+GET {{host}}/api/search?q=tolkien
+
+### Add a book
+POST {{host}}/api/books
+Content-Type: application/json
+
+{
+  "title": "The Martian",
+  "author": "Andy Weir",
+  "isbn": "0553418025",
+  "pageCount": 369,
+  "genre": "Science Fiction",
+  "publishYear": 2014
+}
+
+### Update book status
+PUT {{host}}/api/books/1
+Content-Type: application/json
+
+{
+  "status": "Reading",
+  "dateStarted": "2026-05-01T00:00:00Z"
+}
+
+### Rate and review
+PUT {{host}}/api/books/1
+Content-Type: application/json
+
+{
+  "status": "Finished",
+  "rating": 5,
+  "reviewText": "Absolutely loved it!",
+  "dateFinished": "2026-05-10T00:00:00Z"
+}
+
+### Delete a book
+DELETE {{host}}/api/books/1
+
+### Get reading stats
+GET {{host}}/api/stats

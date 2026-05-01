@@ -1,0 +1,16 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.2.0">
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShelfLife.Api\ShelfLife.Api.csproj" />
+    <ProjectReference Include="..\ShelfLife.Web\ShelfLife.Web.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>0dda519d-17cf-4193-8254-a68cd76bcfb2</UserSecretsId>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,155 @@
+@page "/search"
+@inject ShelfLifeApiClient Api
+@inject ISnackbar Snackbar
+
+<PageTitle>ShelfLife — Search</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4" Style="font-weight: 700;">🔍 Search Books</MudText>
+
+    <MudTextField T="string" @bind-Value="_searchQuery" Placeholder="Search by title or author..."
+                  Variant="Variant.Outlined" Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true"
+                  DebounceInterval="300" OnDebounceIntervalElapsed="SearchBooks"
+                  Class="mb-6" Style="max-width: 600px;" />
+
+    @if (_searching)
+    {
+        <MudGrid Spacing="4">
+            @for (var i = 0; i < 6; i++)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <MudCard Elevation="2">
+                        <div class="d-flex">
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="120px" Height="180px" />
+                            <div class="pa-3" style="flex: 1;">
+                                <MudSkeleton Width="80%" />
+                                <MudSkeleton Width="60%" Class="mt-2" />
+                                <MudSkeleton Width="40%" Class="mt-4" />
+                            </div>
+                        </div>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+    else if (_hasSearched && _results.Count == 0)
+    {
+        <div class="d-flex flex-column align-center mt-8">
+            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Secondary" />
+            <MudText Typo="Typo.h6" Color="Color.Secondary" Class="mt-2">
+                No books found for "@_searchQuery"
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Try a different search term.
+            </MudText>
+        </div>
+    }
+    else if (_results.Count > 0)
+    {
+        <MudGrid Spacing="4">
+            @foreach (var result in _results)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <ShelfLife.Web.Components.Shared.BookCard SearchResult="result"
+                        IsAdded="@(_addedKeys.Contains(result.OpenLibraryKey ?? result.Isbn ?? result.Title))"
+                        OnAddToShelf="@(() => AddToShelf(result))" />
+                </MudItem>
+            }
+        </MudGrid>
+    }
+    else
+    {
+        <div class="d-flex flex-column align-center mt-8" style="opacity: 0.6;">
+            <MudIcon Icon="@Icons.Material.Filled.ManageSearch" Style="font-size: 4rem;" Color="Color.Secondary" />
+            <MudText Typo="Typo.h6" Color="Color.Secondary" Class="mt-2">
+                Start typing to search for books
+            </MudText>
+        </div>
+    }
+</MudContainer>
+
+@code {
+    private string _searchQuery = string.Empty;
+    private List<BookSearchResult> _results = [];
+    private bool _searching;
+    private bool _hasSearched;
+    private HashSet<string> _addedKeys = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var shelfBooks = await Api.GetBooksAsync();
+            foreach (var b in shelfBooks)
+            {
+                if (b.OpenLibraryKey is not null) _addedKeys.Add(b.OpenLibraryKey);
+                if (b.Isbn is not null) _addedKeys.Add(b.Isbn);
+            }
+        }
+        catch { /* shelf unavailable, no pre-population */ }
+    }
+
+    private async Task SearchBooks(string query)
+    {
+        _searchQuery = query;
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            _results = [];
+            _hasSearched = false;
+            return;
+        }
+
+        _searching = true;
+        _hasSearched = true;
+        try
+        {
+            _results = await Api.SearchBooksAsync(query);
+        }
+        catch
+        {
+            Snackbar.Add("Search failed. Is the backend running?", Severity.Error);
+            _results = [];
+        }
+        finally
+        {
+            _searching = false;
+        }
+    }
+
+    private async Task AddToShelf(BookSearchResult result)
+    {
+        try
+        {
+            var request = new AddBookRequest
+            {
+                Title = result.Title,
+                Author = result.Author,
+                Isbn = result.Isbn,
+                CoverUrl = result.CoverUrl,
+                PageCount = result.PageCount,
+                Genre = result.Genre,
+                Publisher = result.Publisher,
+                PublishYear = result.PublishYear,
+                Description = result.Description,
+                OpenLibraryKey = result.OpenLibraryKey
+            };
+            var book = await Api.AddBookAsync(request);
+            if (book is null)
+            {
+                Snackbar.Add($"\"{result.Title}\" is already on your shelf.", Severity.Warning);
+            }
+            else
+            {
+                Snackbar.Add($"Added \"{result.Title}\" to your shelf! 📚", Severity.Success);
+            }
+            // Track as added regardless so the button disables
+            var key = result.OpenLibraryKey ?? result.Isbn ?? result.Title;
+            _addedKeys.Add(key);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to add book.", Severity.Error);
+        }
+    }
+}

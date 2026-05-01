@@ -1,0 +1,171 @@
+@page "/shelf"
+@inject ShelfLifeApiClient Api
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>ShelfLife — My Shelf</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4" Style="font-weight: 700;">📚 My Shelf</MudText>
+
+    <div class="d-flex flex-wrap align-center gap-4 mb-6">
+        <MudChipSet T="string" SelectionMode="SelectionMode.SingleSelection" SelectedValue="_selectedFilter"
+                    SelectedValueChanged="OnFilterChanged">
+            <MudChip T="string" Value="@("All")" Variant="Variant.Filled" Color="Color.Primary">All (@_allBooks.Count)</MudChip>
+            <MudChip T="string" Value="@("WantToRead")" Variant="Variant.Outlined" Color="Color.Info">Want to Read (@CountByStatus(ReadingStatus.WantToRead))</MudChip>
+            <MudChip T="string" Value="@("Reading")" Variant="Variant.Outlined" Color="Color.Warning">Reading (@CountByStatus(ReadingStatus.Reading))</MudChip>
+            <MudChip T="string" Value="@("Finished")" Variant="Variant.Outlined" Color="Color.Success">Finished (@CountByStatus(ReadingStatus.Finished))</MudChip>
+            <MudChip T="string" Value="@("Abandoned")" Variant="Variant.Outlined" Color="Color.Error">Abandoned (@CountByStatus(ReadingStatus.Abandoned))</MudChip>
+        </MudChipSet>
+
+        <MudSelect T="string" @bind-Value="_sortOrder" Label="Sort by" Variant="Variant.Outlined"
+                   Dense="true" Style="max-width: 200px;">
+            <MudSelectItem T="string" Value="@("DateAdded")">Date Added</MudSelectItem>
+            <MudSelectItem T="string" Value="@("Title")">Title</MudSelectItem>
+            <MudSelectItem T="string" Value="@("Rating")">Rating</MudSelectItem>
+        </MudSelect>
+    </div>
+
+    @if (_loading)
+    {
+        <MudGrid Spacing="4">
+            @for (var i = 0; i < 6; i++)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="180px" />
+                </MudItem>
+            }
+        </MudGrid>
+    }
+    else if (_filteredBooks.Count == 0)
+    {
+        <div class="d-flex flex-column align-center mt-8">
+            <MudIcon Icon="@Icons.Material.Filled.BookmarkBorder" Style="font-size: 4rem;" Color="Color.Secondary" />
+            <MudText Typo="Typo.h6" Color="Color.Secondary" Class="mt-2">
+                @if (_selectedFilter == "All")
+                {
+                    <text>Your shelf is empty. Search for books to add some!</text>
+                }
+                else
+                {
+                    <text>No books with status "@GetFilterLabel(_selectedFilter)".</text>
+                }
+            </MudText>
+        </div>
+    }
+    else
+    {
+        <MudGrid Spacing="4">
+            @foreach (var book in _filteredBooks)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <ShelfLife.Web.Components.Shared.BookCard Book="book"
+                        OnViewDetails="NavigateToBook"
+                        OnStatusChanged="HandleStatusChanged"
+                        OnDelete="HandleDelete" />
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private List<BookDto> _allBooks = [];
+    private List<BookDto> _filteredBooks = [];
+    private string _selectedFilter = "All";
+    private string _sortOrder = "DateAdded";
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _allBooks = await Api.GetBooksAsync();
+            ApplyFilterAndSort();
+        }
+        catch
+        {
+            Snackbar.Add("Could not load books. Is the backend running?", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OnFilterChanged(string value)
+    {
+        _selectedFilter = value ?? "All";
+        ApplyFilterAndSort();
+    }
+
+    private void ApplyFilterAndSort()
+    {
+        var books = _selectedFilter switch
+        {
+            "WantToRead" => _allBooks.Where(b => b.Status == ReadingStatus.WantToRead),
+            "Reading" => _allBooks.Where(b => b.Status == ReadingStatus.Reading),
+            "Finished" => _allBooks.Where(b => b.Status == ReadingStatus.Finished),
+            "Abandoned" => _allBooks.Where(b => b.Status == ReadingStatus.Abandoned),
+            _ => _allBooks.AsEnumerable()
+        };
+
+        _filteredBooks = _sortOrder switch
+        {
+            "Title" => books.OrderBy(b => b.Title).ToList(),
+            "Rating" => books.OrderByDescending(b => b.Rating ?? 0).ToList(),
+            _ => books.OrderByDescending(b => b.DateAdded).ToList()
+        };
+    }
+
+    private async Task HandleStatusChanged((int Id, ReadingStatus Status) args)
+    {
+        try
+        {
+            var request = new UpdateBookRequest { Status = args.Status };
+            if (args.Status == ReadingStatus.Reading)
+                request.DateStarted = DateTime.UtcNow;
+            else if (args.Status == ReadingStatus.Finished)
+                request.DateFinished = DateTime.UtcNow;
+
+            await Api.UpdateBookAsync(args.Id, request);
+            Snackbar.Add($"Status updated to {GetFilterLabel(args.Status.ToString())}", Severity.Success);
+            ApplyFilterAndSort();
+        }
+        catch
+        {
+            Snackbar.Add("Failed to update status.", Severity.Error);
+        }
+    }
+
+    private async Task HandleDelete(int id)
+    {
+        try
+        {
+            await Api.DeleteBookAsync(id);
+            _allBooks.RemoveAll(b => b.Id == id);
+            ApplyFilterAndSort();
+            Snackbar.Add("Book removed from shelf.", Severity.Info);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to remove book.", Severity.Error);
+        }
+    }
+
+    private void NavigateToBook(int id)
+    {
+        Navigation.NavigateTo($"/book/{id}");
+    }
+
+    private int CountByStatus(ReadingStatus status) => _allBooks.Count(b => b.Status == status);
+
+    private static string GetFilterLabel(string filter) => filter switch
+    {
+        "WantToRead" => "Want to Read",
+        "Reading" => "Reading",
+        "Finished" => "Finished",
+        "Abandoned" => "Abandoned",
+        _ => filter
+    };
+}
