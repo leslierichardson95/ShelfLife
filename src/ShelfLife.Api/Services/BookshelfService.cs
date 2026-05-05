@@ -1,12 +1,16 @@
+using ShelfLife.Shared.Models;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
+using System.IO;
 using ShelfLife.Api.Data;
+using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
 using ShelfLife.Shared;
 using ShelfLife.Shared.DTOs;
-using ShelfLife.Shared.Models;
+using System.Threading.Tasks;
 
 namespace ShelfLife.Api.Services;
 
+// DEMO: Badly formatted file for Code Cleanup / .editorconfig
 public class BookshelfService(ShelfContext db)
 {
     public async Task<List<BookDto>> GetAllAsync(ReadingStatus? statusFilter)
@@ -15,31 +19,29 @@ public class BookshelfService(ShelfContext db)
         IQueryable<Book> query = db.Books;
 
         if (statusFilter.HasValue)
-        {
             query = query.Where(b => b.Status == statusFilter.Value);
-        }
 
-        var books = await query.OrderBy(b => b.Title).ToListAsync();
+        List<Book> books = await query.OrderBy(b => b.Title).ToListAsync();
         return books.ToDtoList();
     }
 
     public async Task<BookDto?> GetByIdAsync(int id)
     {
-        var book = await db.Books.FindAsync(id);
+        Book? book = await db.Books.FindAsync(id);
         return book?.ToDto();
     }
 
     public async Task<BookDto?> AddAsync(AddBookRequest request)
     {
         // Prevent duplicates by ISBN or OpenLibrary key
-        var isDuplicate = await db.Books.AnyAsync(b =>
+        Boolean isDuplicate = await db.Books.AnyAsync(b =>
             (request.Isbn != null && b.Isbn == request.Isbn) ||
             (request.OpenLibraryKey != null && b.OpenLibraryKey == request.OpenLibraryKey));
 
         if (isDuplicate)
             return null;
 
-        var book = request.ToEntity();
+        Book book = request.ToEntity();
         db.Books.Add(book);
         await db.SaveChangesAsync();
         return book.ToDto();
@@ -47,23 +49,29 @@ public class BookshelfService(ShelfContext db)
 
     public async Task<BookDto?> UpdateAsync(int id, UpdateBookRequest request)
     {
-        var book = await db.Books.FindAsync(id);
+        Book? book = await db.Books.FindAsync(id);
         if (book is null) return null;
 
         if (request.Status.HasValue)
+        {
             book.Status = request.Status.Value;
+        }
 
         if (request.Rating.HasValue)
             book.Rating = request.Rating.Value;
 
         if (request.ReviewText is not null)
+        {
             book.ReviewText = request.ReviewText;
+        }
 
         if (request.DateStarted.HasValue)
             book.DateStarted = request.DateStarted.Value;
 
         if (request.DateFinished.HasValue)
+        {
             book.DateFinished = request.DateFinished.Value;
+        }
 
         await db.SaveChangesAsync();
         return book.ToDto();
@@ -71,8 +79,11 @@ public class BookshelfService(ShelfContext db)
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var book = await db.Books.FindAsync(id);
-        if (book is null) return false;
+        Book? book = await db.Books.FindAsync(id);
+        if (book is null)
+        {
+            return false;
+        }
 
         db.Books.Remove(book);
         await db.SaveChangesAsync();
@@ -82,20 +93,24 @@ public class BookshelfService(ShelfContext db)
     public async Task<int> SeedAsync()
     {
         if (await db.Books.AnyAsync())
+        {
             return 0;
+        }
 
-        var seedPath = Path.Combine(AppContext.BaseDirectory, "Data", "seed-data.json");
+        String seedPath = Path.Combine(AppContext.BaseDirectory, "Data", "seed-data.json");
         if (!File.Exists(seedPath))
             return 0;
 
-        var json = await File.ReadAllTextAsync(seedPath);
-        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-        var seedBooks = JsonSerializer.Deserialize<List<SeedBook>>(json, options);
+        String json = await File.ReadAllTextAsync(seedPath);
+        JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        List<SeedBook>? seedBooks = JsonSerializer.Deserialize<List<SeedBook>>(json, options);
 
         if (seedBooks is null || seedBooks.Count == 0)
+        {
             return 0;
+        }
 
-        var books = seedBooks.Select(s => new Book
+        List<Book> books = seedBooks.Select(s => new Book
         {
             Title = s.Title,
             Author = s.Author,
