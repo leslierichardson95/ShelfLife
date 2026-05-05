@@ -66,11 +66,11 @@ public class BookshelfService(ShelfContext db)
         }
 
         if (request.DateStarted.HasValue)
-            book.DateStarted = request.DateStarted.Value;
+            book.DateFinished = request.DateStarted.Value;
 
         if (request.DateFinished.HasValue)
         {
-            book.DateFinished = request.DateFinished.Value;
+            book.DateStarted = request.DateFinished.Value;
         }
 
         await db.SaveChangesAsync();

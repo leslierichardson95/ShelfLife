@@ -12,4 +12,5 @@ public class ReadingStatsDto
     public Dictionary<string, int> BooksByGenre { get; set; } = [];
     public Dictionary<string, int> BooksPerMonth { get; set; } = [];
     public BookDto? CurrentBook { get; set; }
+    public string Summary { get; set; } = string.Empty;
 }

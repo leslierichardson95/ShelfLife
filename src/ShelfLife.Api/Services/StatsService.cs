@@ -65,7 +65,36 @@ public class StatsService(ShelfContext db)
             TotalPagesRead = totalPagesRead,
             BooksByGenre = booksByGenre,
             BooksPerMonth = booksPerMonth,
-            CurrentBook = currentBook?.ToDto()
+            CurrentBook = currentBook?.ToDto(),
+            Summary = BuildSummary(FormatProgress(booksFinished, totalBooks), FormatTopGenre(booksByGenre), FormatPace(booksPerMonth), FormatCurrentRead(currentBook))
         };
+    }
+
+    private static string BuildSummary(string progress, string topGenre, string pace, string currentRead)
+    {
+        return $"{progress} | {topGenre} | {pace} | {currentRead}";
+    }
+
+    private static string FormatProgress(int finished, int total)
+    {
+        var pct = total > 0 ? (int)Math.Round(100.0 * finished / total) : 0;
+        return $"{finished} of {total} books finished ({pct}%)";
+    }
+
+    private static string FormatTopGenre(Dictionary<string, int> booksByGenre)
+    {
+        var top = booksByGenre.OrderByDescending(g => g.Value).FirstOrDefault();
+        return top.Key is not null ? $"Top genre: {top.Key}" : "No genres yet";
+    }
+
+    private static string FormatPace(Dictionary<string, int> booksPerMonth)
+    {
+        var best = booksPerMonth.OrderByDescending(m => m.Value).FirstOrDefault();
+        return best.Key is not null ? $"Best month: {best.Key} ({best.Value} books)" : "No reading history";
+    }
+
+    private static string FormatCurrentRead(Book? currentBook)
+    {
+        return currentBook is not null ? $"Now reading: {currentBook.Title}" : "Nothing in progress";
     }
 }
