@@ -33,6 +33,9 @@ csharp_style_expression_bodied_methods = when_on_single_line:suggestion
 csharp_style_expression_bodied_constructors = false:suggestion
 csharp_style_expression_bodied_properties = true:suggestion
 
+# Braces preferences
+csharp_prefer_braces = true:suggestion
+
 # Namespace declarations
 csharp_style_namespace_declarations = file_scoped:suggestion
 
